@@ -15,6 +15,11 @@ enum {
 };
 
 enum {
+    DHCP_SERVER_PORT = 67,
+    DHCP_CLIENT_PORT = 68,
+};
+
+enum {
     DHCP_FLAGS_BROADCAST = (1<<0),
 };
 

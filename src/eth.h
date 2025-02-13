@@ -34,7 +34,7 @@ struct frame {
 };
 // To be defined by the backend.
 
-// Must zero *f, increment refs, set unref to a callback that frees the frame, and make a copy of data.
+// Must zero *f, increments 'refs', and make a copy of data.
 // If data is NULL, allocate sz bytes, zero them, and set f->data to that pointer.
 extern void frame_initialize(frame* f, const void* data, size_t sz);
 // Decrements refs, and if it is zero, free data.
