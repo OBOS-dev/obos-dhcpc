@@ -11,7 +11,7 @@ bin/dhcp.o: src/dhcp.c
 	$(CC) -c $(CC_FLAGS) $< -o $@
 
 obos_dhcpd: bin/main.o bin/interface.o bin/dhcp.o
-	$(LD) -oobos_dhcpd $^ $(LD_FLAGS)
+	$(LD) -oobos_dhcpc $^ $(LD_FLAGS)
 
 clean:
 	@rm -rf bin/

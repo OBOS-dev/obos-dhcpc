@@ -11,7 +11,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <signal.h>
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <fcntl.h>
@@ -52,7 +51,7 @@ uint32_t dhcp_generate_xid()
     return (uint32_t)(rand.tv_sec & 0xffffffff);
 }
 
-extern __attribute__((format(printf, 1, 2))) int dhcp_log(const char* format, ...)
+__attribute__((format(printf, 1, 2))) int dhcp_log(const char* format, ...)
 {
     va_list list;
     va_start(list, format);
