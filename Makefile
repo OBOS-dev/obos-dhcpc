@@ -1,13 +1,17 @@
 LD := $(CC)
+CC_FLAGS := -fno-strict-aliasing -g -O0
+LD_FLAGS := -lpcap
 all: build obos_dhcpd
 
 bin/main.o: src/main.c
-	$(CC) -c $(CC_FLAGS) src/main.c -o bin/main.o
-bin/eth.o: src/eth.c
-	$(CC) -c $(CC_FLAGS) src/eth.c -o bin/eth.o
+	$(CC) -c $(CC_FLAGS) $< -o $@
+bin/interface.o: src/interface.c
+	$(CC) -c $(CC_FLAGS) $< -o $@
+bin/dhcp.o: src/dhcp.c
+	$(CC) -c $(CC_FLAGS) $< -o $@
 
-obos_dhcpd: bin/main.o bin/eth.o
-	$(LD) -oobos_dhcpd $(LD_FLAGS) $^
+obos_dhcpd: bin/main.o bin/interface.o bin/dhcp.o
+	$(LD) -oobos_dhcpd $^ $(LD_FLAGS)
 
 clean:
 	@rm -rf bin/

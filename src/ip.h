@@ -44,12 +44,6 @@ enum {
 };
 
 enum {
-     // including the header
-    IPv4_PREFERRED_PACKET_LENGTH = 576,
-    IPv4_MAX_PACKET_LENGTH = 0xffff,
-};
-
-enum {
     IPv4_MAY_FRAGMENT = BIT(12),
     IPv4_MORE_FRAGMENTS = BIT(13),
 };
