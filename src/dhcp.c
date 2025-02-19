@@ -324,15 +324,11 @@ int dhcp_discover(interface* i)
             dhcp_foreach_option(dhcp_hdr, sz, find_offer, &res);
             if (res)
             {
-                if (dhcp_hdr->siaddr != ip_hdr->src_address.addr)
-                {
-                    curr = i->ready_packets.head;
-                    continue;
-                }
                 offer_frame = curr;
                 offer = dhcp_hdr;
                 sz_offer = sz;
                 offer_eth_hdr = eth_hdr;
+                i->routing_info.server_ip_address = ip_hdr->src_address.addr;
                 break;
             }
 
@@ -345,8 +341,6 @@ int dhcp_discover(interface* i)
 
     // We have an offer!
     // Accept it.
-
-    i->routing_info.server_ip_address = offer->siaddr;
 
     msg_type.payload[0] = DHCPREQUEST;
     dhcp_option_short requested_address = {.opcode=DHCP_OPT_REQUEST_IP,.length=4,};
@@ -370,7 +364,8 @@ int dhcp_discover(interface* i)
         &server_identifier
     );
     ((dhcp_header*)request.data)->ciaddr = offer->yiaddr;
-    __builtin_memcpy(dest_mac, offer_eth_hdr->src, sizeof(mac_address));
+    ((dhcp_header*)request.data)->siaddr = offer->siaddr;
+    __builtin_memset(dest_mac, 0xff, sizeof(dest_mac));
     transmit_udp_packet(
         i, 
         DHCP_SERVER_PORT, DHCP_CLIENT_PORT, 
@@ -464,7 +459,7 @@ void dhcp_ready(interface* i, frame* f, udp_header* udp_hdr)
     
     frame* new = frame_alloc();
     frame_initialize(new, f->data, f->size);
-    
+
     dhcp_acquire_spinlock(i->ready_packets.lock);
     // Queue the packet.
     if (i->ready_packets.tail)

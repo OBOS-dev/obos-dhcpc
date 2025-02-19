@@ -125,11 +125,11 @@ void data_ready(void* user, interface* i, frame* f)
         goto out;
     if (i->routing_info.server_ip_address && i->routing_info.server_ip_address != ip->src_address.addr)
         goto out;
-    if (i->routing_info.ip_address && i->routing_info.ip_address != ip->dest_address.addr)
+    if ((i->routing_info.ip_address && i->routing_info.ip_address != ip->dest_address.addr) && ip->dest_address.addr != 0xffffffff)
         goto out;
 
     // At this point, we know we have a UDP packet.
-    // Just verify it's destination port, then forward it.
+    // Just verify its destination port, then forward it.
 
     udp_header* udp = (udp_header*)(ip+1);
     if (be16toh(udp->dest_port) != DHCP_CLIENT_PORT)
