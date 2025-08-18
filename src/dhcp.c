@@ -213,6 +213,26 @@ static int initalize_routing_info(dhcp_header* hdr, dhcp_option* opt, void* user
                 dhcp_log("DHCP: Found router: %u.%u.%u.%u\n", opt->payload[0+j*4], opt->payload[1+j*4], opt->payload[2+j*4], opt->payload[3+j*4]);
             break;
         }
+        case DHCP_OPT_STATIC_ROUTE:
+        {
+            if (opt->length < 8 || (opt->length % 8) != 0)
+                break;
+            frame_initialize(&i->routing_info.static_routes_buffer, opt->payload, opt->length);
+            i->routing_info.static_routes = i->routing_info.static_routes_buffer.data;
+            i->routing_info.nStaticRoutes = opt->length / 8;
+            for (size_t j = 0; j < i->routing_info.nRouters; j++)
+                dhcp_log("DHCP: Found static route: %u.%u.%u.%u->%u.%u.%u.%u\n",
+                    be32toh(i->routing_info.static_routes[j].src) & 0xff000000,
+                    be32toh(i->routing_info.static_routes[j].src) & 0x00ff0000,
+                    be32toh(i->routing_info.static_routes[j].src) & 0x0000ff00,
+                    be32toh(i->routing_info.static_routes[j].src) & 0x000000ff,
+                    be32toh(i->routing_info.static_routes[j].dest) & 0xff000000,
+                    be32toh(i->routing_info.static_routes[j].dest) & 0x00ff0000,
+                    be32toh(i->routing_info.static_routes[j].dest) & 0x0000ff00,
+                    be32toh(i->routing_info.static_routes[j].dest) & 0x000000ff
+                );
+
+        }
         case DHCP_OPT_SUBNET_MASK:
         {
             if (opt->length != 4)
@@ -245,6 +265,7 @@ int dhcp_discover(interface* i)
         .payload = {
             DHCP_OPT_ROUTER,
             DHCP_OPT_SUBNET_MASK,
+            DHCP_OPT_STATIC_ROUTE,
             DHCP_OPT_BROADCAST_ADDRESS,
             DHCP_OPT_ENABLE_IP_FORWARDING,
         }

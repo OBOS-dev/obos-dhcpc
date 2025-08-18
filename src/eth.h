@@ -29,6 +29,7 @@ typedef struct ethernet2_header {
 typedef struct interface interface;
 typedef uint32_t routing_entry;
 typedef struct frame frame;
+typedef struct { uint32_t src; uint32_t dest; } static_routing_entry;
 
 struct frame {
     void* data;
@@ -83,6 +84,10 @@ struct interface {
         routing_entry* routers;
         size_t nRouters;
         frame routers_buffer;
+
+        static_routing_entry* static_routes;
+        size_t nStaticRoutes;
+        frame static_routes_buffer;
     } routing_info;
 };
 
