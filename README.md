@@ -7,4 +7,5 @@ A portable-ish DHCP client written for OBOS
 - libpcap-dev
 ### Compiling
 1. Clone the repository, and enter the cloned directory
-2. Run `make all`
+2. Run `make -f Makefile.pcap all`
+
