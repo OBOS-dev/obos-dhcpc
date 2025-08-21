@@ -72,6 +72,41 @@ static uint16_t ip_checksum(ip_header* hdr)
     return ones_complement_sum(hdr, IPv4_GET_HEADER_LENGTH(hdr));
 }
 
+static uint16_t udp_chksum(ip_header* ip_hdr, udp_header* hdr)
+{
+    struct {
+        uint32_t src_addr;
+        uint32_t dest_addr;
+        uint8_t zero;
+        uint8_t protocol;
+        uint16_t length;
+    } ip_psuedo_header = {.src_addr=ip_hdr->src_address.addr,.dest_addr=ip_hdr->dest_address.addr,.protocol=0x11,.zero=0,.length=hdr->length};
+    const uint16_t *p = (void*)&ip_psuedo_header;
+    size_t size = sizeof(ip_psuedo_header);
+    int sum = 0;
+    
+    for (int i = 0; i < ((int)size & ~(1)); i += 2) {
+        sum += be16toh(p[i >> 1]);
+    }
+
+    p = (void*)hdr;
+    size = be16toh(hdr->length);
+    
+    for (int i = 0; i < ((int)size & ~(1)); i += 2) {
+        sum += be16toh(p[i >> 1]);
+    }
+
+    if (size & 1) {
+        sum += be16toh((uint16_t)((uint8_t *)p)[size-1]);
+    }
+
+    sum = (sum >> 16) + (sum & 0xffff);
+    sum += sum >> 16;
+
+    uint16_t ret = ~sum;
+    return ret;
+}
+
 int transmit_udp_packet(interface* i, uint16_t dest_port, uint16_t src_port, const void* data, size_t size, ip_addr dest, ip_addr src, const mac_address* dest_mac)
 {
     if (!i || !dest_port || !src_port || !data || !size || !dest_mac)
@@ -89,10 +124,10 @@ int transmit_udp_packet(interface* i, uint16_t dest_port, uint16_t src_port, con
     udp_header* udp_hdr = (void*)(ip_hdr+1);
     udp_hdr->dest_port = htobe16(dest_port);
     udp_hdr->src_port = htobe16(src_port);
-    udp_hdr->chksum = 0;
     udp_hdr->length = htobe16(size);
     void* buff = udp_hdr + 1;
     __builtin_memcpy(buff, data, size);
+    udp_hdr->chksum = htobe16(udp_chksum(ip_hdr, udp_hdr));
 
     ethernet2_header hdr = {};
     __builtin_memcpy(hdr.src, i->interface_mac, sizeof(i->interface_mac));

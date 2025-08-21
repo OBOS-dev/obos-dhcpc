@@ -47,7 +47,7 @@ void dhcp_format_header(interface* i, frame* out, uint8_t op, uint32_t xid, size
     hdr->op = op;
     hdr->hlen = 6;
     hdr->htype = 1;
-    hdr->flags = htobe16(DHCP_FLAGS_BROADCAST);
+    hdr->flags = 0;
     __builtin_memcpy(hdr->chaddr, &i->interface_mac, sizeof(mac_address));
 
     size_t offset = 0;
@@ -261,16 +261,25 @@ int dhcp_discover(interface* i)
         return 1;
     static dhcp_option_short parameter_req = { 
         .opcode = DHCP_OPT_PARAMETER_REQUESTS,
-        .length = 4,
+        .length = 6,
         .payload = {
             DHCP_OPT_ROUTER,
             DHCP_OPT_SUBNET_MASK,
             DHCP_OPT_STATIC_ROUTE,
             DHCP_OPT_BROADCAST_ADDRESS,
             DHCP_OPT_ENABLE_IP_FORWARDING,
+            DHCP_OPT_DOMAIN_NAME_SERVER,
         }
     };
     dhcp_option_short msg_type = { .opcode = DHCP_OPT_DHCP_MSG_TYPE, .length=1, .payload[0]=DHCPDISCOVER };
+    static dhcp_option_short maximum_message_size = {
+        .opcode = DHCP_OPT_MAX_MSG_SIZE,
+        .length = 2,
+        .payload = {
+            0x02, // 0x240=576
+            0x40, // 0x240=576
+        }
+    };
 
     dhcp_option_short domain_name_static = {};
 
@@ -281,12 +290,12 @@ int dhcp_discover(interface* i)
     {
         if (!domain_name)
         {
-            frame_initialize(&domain_name_buffer, NULL, domain_name_len+sizeof(dhcp_option));
+            frame_initialize(&domain_name_buffer, NULL, domain_name_len-1+sizeof(dhcp_option));
             domain_name = domain_name_buffer.data;
         }
-        domain_name->length = domain_name_len;
+        domain_name->length = domain_name_len-1;
         domain_name->opcode = DHCP_OPT_DOMAIN_NAME;
-        __builtin_memcpy(domain_name->payload, i->requested_hostname, domain_name_len);
+        __builtin_memcpy(domain_name->payload, i->requested_hostname, domain_name_len-1);
     }
 
     frame discover = {};
@@ -295,7 +304,8 @@ int dhcp_discover(interface* i)
         &discover, 
         BOOTREQUEST, 
         dhcp_generate_xid(), 
-        2 + ((domain_name == NULL) ? 0 : 1),
+        3 + ((domain_name == NULL) ? 0 : 1),
+        &maximum_message_size, 
         &msg_type,
         &parameter_req, 
         domain_name
@@ -446,17 +456,6 @@ int dhcp_discover(interface* i)
     interface_stop(i);
 
     dhcp_log("DHCP: Accepted an offer, and got an ACK.\nRegistering routing information.\n");
-
-    for (frame* curr = i->ready_packets.head; curr && spin < timeout; )
-    {
-        dhcp_acquire_spinlock(i->ready_packets.lock);
-        i->ready_packets.head = curr->next;
-        if (curr->next)
-            curr->next->prev = NULL;
-        if (i->ready_packets.tail == curr)
-            i->ready_packets.tail = curr->prev;
-        dhcp_release_spinlock(i->ready_packets.lock);
-    }
 
     i->routing_info.hdr = offer;
     frame_initialize(&i->routing_info.hdr_frame, offer_frame->data, offer_frame->size);
