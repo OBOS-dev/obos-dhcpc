@@ -78,6 +78,7 @@ struct interface {
         uint32_t ip_address;
         uint32_t broadcast_ip_address;
         uint32_t subnet_mask;
+        uint32_t dns_server;
         
         bool enable_ipv4_forwarding;
 

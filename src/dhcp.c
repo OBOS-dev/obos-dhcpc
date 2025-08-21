@@ -200,6 +200,7 @@ static int initalize_routing_info(dhcp_header* hdr, dhcp_option* opt, void* user
             if (opt->length < 4)
                 break;
             i->routing_info.broadcast_ip_address = *(uint32_t*)opt->payload;
+            dhcp_log("DHCP: Broadcast address: %u.%u.%u.%u\n", opt->payload[0], opt->payload[1], opt->payload[2], opt->payload[3]);
             break;
         }
         case DHCP_OPT_ROUTER:
@@ -211,6 +212,14 @@ static int initalize_routing_info(dhcp_header* hdr, dhcp_option* opt, void* user
             i->routing_info.nRouters = opt->length / 4;
             for (size_t j = 0; j < i->routing_info.nRouters; j++)
                 dhcp_log("DHCP: Found router: %u.%u.%u.%u\n", opt->payload[0+j*4], opt->payload[1+j*4], opt->payload[2+j*4], opt->payload[3+j*4]);
+            break;
+        }
+        case DHCP_OPT_DOMAIN_NAME_SERVER:
+        {
+            if (opt->length < 4)
+                break;
+            i->routing_info.dns_server = *(uint32_t*)opt->payload;
+            dhcp_log("DHCP: DNS Server: %u.%u.%u.%u\n", opt->payload[0], opt->payload[1], opt->payload[2], opt->payload[3]);
             break;
         }
         case DHCP_OPT_STATIC_ROUTE:

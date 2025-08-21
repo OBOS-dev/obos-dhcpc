@@ -103,7 +103,43 @@ void *interface_recv(void* user)
     return NULL;
 }
 
-enum { IOCTL_IFACE_MAC_REQUEST = 0xe100 };
+typedef struct gateway_user {
+    ip_addr src;
+    ip_addr dest;
+} gateway_user;
+
+enum {
+    IP_ENTRY_ENABLE_ICMP_ECHO_REPLY = 1<<0,
+    IP_ENTRY_ENABLE_ARP_REPLY = 1<<1,
+    IP_ENTRY_IPv4_FORWARDING = 1<<2,
+};
+
+typedef struct ip_table_entry_user {
+    ip_addr address;
+    ip_addr broadcast;
+    uint32_t subnet;
+    uint32_t ip_entry_flags;
+} ip_table_entry_user;
+
+enum {
+    // Each ethernet driver should define this
+    // argp points to a `mac_address`
+    IOCTL_IFACE_MAC_REQUEST = 0xe100,
+    // implementations of the following ioctls are in
+    // tables.h 
+    IOCTL_IFACE_ADD_IP_TABLE_ENTRY,
+    IOCTL_IFACE_REMOVE_IP_TABLE_ENTRY,
+    IOCTL_IFACE_ADD_ROUTING_TABLE_ENTRY,
+    IOCTL_IFACE_REMOVE_ROUTING_TABLE_ENTRY,
+    IOCTL_IFACE_SET_IP_TABLE_ENTRY,
+    IOCTL_IFACE_CLEAR_ARP_CACHE,
+    IOCTL_IFACE_CLEAR_ROUTE_CACHE,
+    IOCTL_IFACE_GET_IP_TABLE,
+    IOCTL_IFACE_GET_ROUTING_TABLE,
+    IOCTL_IFACE_SET_DEFAULT_GATEWAY,
+    IOCTL_IFACE_UNSET_DEFAULT_GATEWAY,
+    IOCTL_IFACE_INITIALIZE,
+};
 
 int main(int argc, char **argv)
 {
@@ -142,7 +178,47 @@ int main(int argc, char **argv)
         NULL,
         interface_recv, &net_interface);
 
+    // TODO(oberrow): Cache this information?
     dhcp_discover(&net_interface);
+
+    unlink("/etc/resolv.conf");
+    if (net_interface.routing_info.dns_server)
+    {
+        int fd = open("/etc/resolv.conf", O_WRONLY|O_TRUNC|O_CREAT);
+        char* resolv_conf = NULL;
+        ip_addr dns_server = {.addr=net_interface.routing_info.dns_server};
+        size_t resolv_conf_len = snprintf(NULL, 0, "# DO NOT WRITE! YOUR CHANGES WILL BE OVERWRITTEN!\nnameserver %u.%u.%u.%u\n", 
+            dns_server.comp1,dns_server.comp2,dns_server.comp3,dns_server.comp4        
+        );
+        resolv_conf = malloc(resolv_conf_len+1);
+        snprintf(resolv_conf, resolv_conf_len+1, "# DO NOT WRITE! YOUR CHANGES WILL BE OVERWRITTEN!\nnameserver %u.%u.%u.%u\n", 
+            dns_server.comp1,dns_server.comp2,dns_server.comp3,dns_server.comp4        
+        );
+        write(fd, resolv_conf, resolv_conf_len);
+        fsync(fd);
+        close(fd);
+    }
+    ioctl(interface_fd, IOCTL_IFACE_INITIALIZE);
+    do {
+        ip_table_entry_user entry = {};
+        entry.ip_entry_flags = (net_interface.routing_info.enable_ipv4_forwarding ? IP_ENTRY_IPv4_FORWARDING : 0);
+        entry.ip_entry_flags |= IP_ENTRY_ENABLE_ARP_REPLY;
+        entry.ip_entry_flags |= IP_ENTRY_ENABLE_ICMP_ECHO_REPLY;
+        entry.address.addr = net_interface.routing_info.ip_address;
+        entry.broadcast.addr = net_interface.routing_info.broadcast_ip_address;
+        entry.subnet = net_interface.routing_info.subnet_mask;
+        ioctl(interface_fd, IOCTL_IFACE_ADD_IP_TABLE_ENTRY, &entry);
+    } while(0);
+    for (size_t i = 0; i < net_interface.routing_info.nStaticRoutes; i++)
+    {
+        gateway_user route = {
+            .src.addr=net_interface.routing_info.static_routes[i].src,
+            .dest.addr=net_interface.routing_info.static_routes[i].dest,
+        };
+        ioctl(interface_fd, IOCTL_IFACE_ADD_ROUTING_TABLE_ENTRY, &route);
+    }
+    if (net_interface.routing_info.nRouters > 0)
+        ioctl(interface_fd, IOCTL_IFACE_SET_DEFAULT_GATEWAY, &net_interface.routing_info.routers[0]);
 
     // pthread_cancel(thr);
 
