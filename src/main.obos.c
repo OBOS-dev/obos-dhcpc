@@ -178,8 +178,19 @@ int main(int argc, char **argv)
         NULL,
         interface_recv, &net_interface);
 
+    retry:
+    (void)0;
     // TODO(oberrow): Cache this information?
-    dhcp_discover(&net_interface);
+    int tries = 10;
+    if (dhcp_discover(&net_interface) == -1)
+    {
+        if (tries-- == 0)
+        {
+            printf("DHCP discover failure\n");
+            return -1;
+        }
+        goto retry;
+    }
 
     unlink("/etc/resolv.conf");
     if (net_interface.routing_info.dns_server)

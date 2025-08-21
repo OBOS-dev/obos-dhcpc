@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdatomic.h>
+#include <unistd.h>
 
 #include "eth.h"
 #include "dhcp.h"
@@ -336,12 +337,22 @@ int dhcp_discover(interface* i)
     ethernet2_header* offer_eth_hdr = NULL;
     dhcp_header* offer = NULL;
     size_t sz_offer = 0;
+    int offer_timeout = 5;
     while (!offer_frame)
     {
         interface_ready(i);
-        while (!i->ready_packets.head)
+        while (!i->ready_packets.head && offer_timeout != 0)
+        {
             asm volatile ("" ::"r"(i->ready_packets.head) :"memory");
+            sleep(1);
+            offer_timeout--;
+        }
         interface_stop(i);
+        if (offer_timeout <= 0)
+        {
+            dhcp_log("Timed out after 5 seconds waiting for DHCPOFFER\n");
+            return -1;
+        }
         
         for (frame* curr = i->ready_packets.head; curr; )
         {
