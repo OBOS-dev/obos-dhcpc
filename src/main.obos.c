@@ -97,7 +97,8 @@ void *interface_recv(void* user)
 
         frame f = {};
         frame_initialize(&f, buff, nBlkRead);
-        i->data_ready(i->data_ready_userdata, i, &f);
+        if (i->data_ready)
+            i->data_ready(i->data_ready_userdata, i, &f);
         free(buff);
     }
     return NULL;
