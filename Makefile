@@ -4,6 +4,7 @@ CC_FLAGS := -fno-strict-aliasing -g -O0
 LD_FLAGS :=
 all: build obos_dhcpc
 prefix := /usr/local
+DESTDIR :=
 
 bin/main.obos.o: src/main.obos.c
 	$(CC) -c $(CC_FLAGS) $< -o $@
@@ -18,11 +19,11 @@ obos_dhcpc: bin/main.obos.o bin/interface.o bin/dhcp.o bin/x86_64-syscall-obos.o
 	$(LD) -oobos_dhcpc $^ $(LD_FLAGS)
 
 install: obos_dhcpc
-	install -d $(prefix)
-	install -d $(prefix)/sbin
-	install -m 755 obos_dhcpc $(prefix)/sbin
+	install -d $(DESTDIR)/$(prefix)
+	install -d $(DESTDIR)/$(prefix)/sbin
+	install -m 755 obos_dhcpc $(DESTDIR)/$(prefix)/sbin
 uninstall:
-	rm $(prefix)/sbin/obos_dhcpc
+	rm $(DESTDIR)/$(prefix)/sbin/obos_dhcpc
 
 clean:
 	@rm -rf bin/
