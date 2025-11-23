@@ -64,7 +64,11 @@ __attribute__((format(printf, 1, 2))) int dhcp_log(const char* format, ...)
 void write_frame (interface* i, frame* f)
 {
     int fd = (int)(uintptr_t)i->interface_userdata;
-    write(fd, f->data, f->size);
+    if (write(fd, f->data, f->size) == -1)
+    {
+        perror("write");
+        abort();
+    }
 }
 
 void *interface_recv(void* user)
