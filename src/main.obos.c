@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include <linux/if_packet.h>
 #include <net/if.h>
 #include <net/ethernet.h>
@@ -214,7 +215,13 @@ int main(int argc, char **argv)
         fsync(fd);
         close(fd);
     }
-    ioctl(interface_fd, IOCTL_IFACE_INITIALIZE);
+
+    if (ioctl(interface_fd, IOCTL_IFACE_INITIALIZE) != 0)
+    {
+        perror("ioctl(IOCTL_IFACE_INITIALIZE)");
+        return 0;
+    }
+    
     do {
         ip_table_entry_user entry = {};
         entry.ip_entry_flags = (net_interface.routing_info.enable_ipv4_forwarding ? IP_ENTRY_IPv4_FORWARDING : 0);
@@ -223,7 +230,11 @@ int main(int argc, char **argv)
         entry.address.addr = net_interface.routing_info.ip_address;
         entry.broadcast.addr = net_interface.routing_info.broadcast_ip_address;
         entry.subnet = net_interface.routing_info.subnet_mask;
-        ioctl(interface_fd, IOCTL_IFACE_ADD_IP_TABLE_ENTRY, &entry);
+        if (ioctl(interface_fd, IOCTL_IFACE_ADD_IP_TABLE_ENTRY, &entry) != 0)
+        {
+            fprintf(stderr, "ioctl(IOCTL_IFACE_ADD_IP_TABLE_ENTRY): %s\nIs this interface already configured?", strerror(errno));
+            return -1;
+        }
     } while(0);
     for (size_t i = 0; i < net_interface.routing_info.nStaticRoutes; i++)
     {
@@ -231,10 +242,20 @@ int main(int argc, char **argv)
             .src.addr=net_interface.routing_info.static_routes[i].src,
             .dest.addr=net_interface.routing_info.static_routes[i].dest,
         };
-        ioctl(interface_fd, IOCTL_IFACE_ADD_ROUTING_TABLE_ENTRY, &route);
+        if (ioctl(interface_fd, IOCTL_IFACE_ADD_ROUTING_TABLE_ENTRY, &route) != 0)
+        {
+            fprintf(stderr, "ioctl(IOCTL_IFACE_ADD_ROUTING_TABLE_ENTRY): %s\nIs this interface already configured, and is the router up?");
+            return -1;
+        }
     }
     if (net_interface.routing_info.nRouters > 0)
-        ioctl(interface_fd, IOCTL_IFACE_SET_DEFAULT_GATEWAY, &net_interface.routing_info.routers[0]);
+    {
+        if (ioctl(interface_fd, IOCTL_IFACE_SET_DEFAULT_GATEWAY, &net_interface.routing_info.routers[0]) != 0)
+        {
+            fprintf(stderr, "ioctl(IOCTL_IFACE_SET_DEFAULT_GATEWAY): %s\nIs this interface already configured, and is the router up?");
+            return -1;
+        }
+    }
 
     // pthread_cancel(thr);
 
